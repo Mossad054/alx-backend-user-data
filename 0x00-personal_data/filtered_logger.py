@@ -2,21 +2,29 @@
 """
 Personal Data
 """
-import re
-from typing import List
+
 import logging
 import os
+import re
+from typing import List
 import mysql.connector
+
 
 PII_FIELDS = ('name', 'email', 'phone', 'ssn', 'password')
 
-def filter_datum(fields: List[str], redaction: str, message: str, separator: str) -> str:
-    """Obfuscates specified fields in the log message."""
-    pattern = rf'({"|".join(map(re.escape, fields))})=[^{separator}]*'
-    return re.sub(pattern, f'\\1={redaction}', message)
+
+def filter_datum(fields: List[str], redaction: str, message: str,
+                 separator: str) -> str:
+    """ Replacing """
+    for f in fields:
+        message = re.sub(rf"{f}=(.*?)\{separator}",
+                         f'{f}={redaction}{separator}', message)
+    return message
+
 
 class RedactingFormatter(logging.Formatter):
     """ RedactingFormatter class. """
+
     REDACTION = "***"
     FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
     SEPARATOR = ";"
@@ -31,8 +39,11 @@ class RedactingFormatter(logging.Formatter):
         return filter_datum(self.fields, self.REDACTION,
                             super().format(record), self.SEPARATOR)
 
+
 def get_logger() -> logging.Logger:
-    """ Implementing a logger. """
+    """ Implementing a logger.
+    """
+
     logger = logging.getLogger("user_data")
     logger.setLevel(logging.INFO)
     logger.propagate = False
@@ -41,8 +52,10 @@ def get_logger() -> logging.Logger:
     logger.addHandler(handler)
     return logger
 
+
 def get_db() -> mysql.connector.connection.MySQLConnection:
-    """ Implement db connectivity """
+    """ Implement db conectivity
+    """
     psw = os.environ.get("PERSONAL_DATA_DB_PASSWORD", "")
     username = os.environ.get('PERSONAL_DATA_DB_USERNAME', "root")
     host = os.environ.get('PERSONAL_DATA_DB_HOST', 'localhost')
@@ -54,19 +67,21 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
         password=psw)
     return conn
 
+
 def main() -> None:
-    """ Implement a main function """
+    """ Implement a main function
+    """
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT * FROM users;")
-    logger = get_logger()
     for row in cursor:
         message = f"name={row[0]}; email={row[1]}; phone={row[2]}; " +\
             f"ssn={row[3]}; password={row[4]};ip={row[5]}; " +\
             f"last_login={row[6]}; user_agent={row[7]};"
-        logger.info(message)
+        print(message)
     cursor.close()
     db.close()
+
 
 if __name__ == '__main__':
     main()
